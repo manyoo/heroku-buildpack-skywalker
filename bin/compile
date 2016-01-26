@@ -30,7 +30,7 @@ mkdir -p "$bin"
 export PATH="$bin:$PATH"
 
 if [ ! "$(which stack)" ]; then
-    version=0.1.6.0
+    version=1.0.2
     slug="stack-$version-linux-x86_64"
     url="https://github.com/commercialhaskell/stack/releases/download/v$version/$slug.tar.gz"
     if [ ! -x "$cache/$slug/stack" ]; then
