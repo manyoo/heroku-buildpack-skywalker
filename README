@@ -1,0 +1,16 @@
+# Heroku Buildpack for Skywalker apps
+
+[Heroku buildpack][1] for Skywalker apps. Based on the excellent [heroku-buildpack-stack][2]
+
+### Useage
+
+Create an app with this buildpack:
+
+    $ heroku create --buildpack https://github.com/manyoo/heroku-buildpack-skywalker.git
+
+Set this buildpack on an exiting app:
+
+    $ heroku buildpacks:set https://github.com/manyoo/heroku-buildpack-skywalker
+
+[1]: http://devcenter.heroku.com/articles/buildpacks
+[2]: https://github.com/mfine/heroku-buildpack-stack
