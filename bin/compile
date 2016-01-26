@@ -79,13 +79,14 @@ chmod a+x "$WORK_DIR/vendor/bin/stack"
 ########## project build ###########################################
 speak "Running stack"
 cd "$BUILD_DIR"
-stack setup
-stack build --copy-bins
+stack setup --work-dir "$STACK_ROOT"
+stack build --work-dir "$STACK_ROOT"
 
-STACK_YAML=stack_ghcjs.yaml stack setup
-STACK_YAML=stack_ghcjs.yaml stack build
+speak "Running ghcjs stack"
+STACK_YAML=stack_ghcjs.yaml stack setup --work-dir "$STACK_ROOT"
+STACK_YAML=stack_ghcjs.yaml stack build --work-dir "$STACK_ROOT"
 
-cp $(STACK_YAML=stack_ghcjs.yaml stack path --local-install-root)/bin/joemax-app.jsexe/*.js ./public/javascript/
+cp $(STACK_YAML=stack_ghcjs.yaml stack path --work-dir "$STACK_ROOT" --local-install-root)/bin/joemax-app.jsexe/*.js ./public/javascript/
 
 # Set context environment variables.
 set-env PATH "$WORK_DIR/.local/bin:$PATH"
