@@ -63,4 +63,8 @@ mkdir -p "$cache/.stack-work"
 ln -s "$cache/.stack-work" "$build"
 stack build |& indent
 cp $(stack path --local-install-root)/bin/* "$bin"
+
+echo '-----> Setting up stack for ghcjs'
+STACK_YAML=stack_ghcjs.yaml stack setup
+STACK_YAML=stack_ghcjs.yaml stack build
 rm "$build/.stack-work"
