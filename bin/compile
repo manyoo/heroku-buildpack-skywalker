@@ -1,102 +1,66 @@
-#!/usr/bin/env bash
-# bin/compile <build-dir> <cache-dir> <env-dir>
+#!/bin/bash
 
-set -e
-set -o pipefail
+set -eo pipefail
 
-# Heroku-provided params
-BUILD_DIR="$1"
-CACHE_DIR="$2"
-ENV_DIR="$3"
-
-function speak (){
-  echo "-----> $(date -u '+%Y-%m-%d_%H:%M:%S') $1"
+indent() {
+    sed -u 's/^/       /'
 }
 
-speak "Starting..."
+mkdir -p "$1" "$2" "$3"
+build=$(cd "$1/" && pwd)
+cache=$(cd "$2/" && pwd)
 
-BLACKLIST_REGEX="^(PATH|GIT_DIR|CPATH|CPPATH|LD_PRELOAD|LIBRARY_PATH)$"
-if [ -d "$ENV_DIR" ]; then
-  speak "Exporting config vars"
-  for e in $(ls "$ENV_DIR"); do
-    echo "$e" | grep -qvE "$BLACKLIST_REGEX" &&
-    export "$e=$(cat $ENV_DIR/$e)"
-    :
-  done
+gmp="$cache/gmp-6.0.0"
+libs="$gmp/.libs"
+export LIBRARY_PATH="$LIBRARY_PATH:$libs"
+
+if [ ! -d "$libs" ]; then
+    echo '-----> Downloading libgmp'
+    curl -sL "https://gmplib.org/download/gmp/gmp-6.0.0a.tar.xz" | tar -xJC "$cache"
+    cd "$gmp"
+    echo '-----> Building libgmp'
+    ./configure |& indent
+    make |& indent
+    echo '-----> Checking libgmp'
+    make check |& indent
 fi
 
-WORK_DIR=/app
-mkdir -p "$WORK_DIR/vendor"
-mkdir -p "$WORK_DIR/vendor/bin"
-mkdir -p "$WORK_DIR/vendor/ghc-libs"
+bin="$build/.vendor/stack/bin"
+mkdir -p "$bin"
+export PATH="$bin:$PATH"
 
-PROFILE_DIR="$BUILD_DIR/.profile.d"
-PROFILE_PATH="$PROFILE_DIR/stack.sh"
-mkdir -p "$PROFILE_DIR"
-
-# Usage: $ set-env key value
-function set-env (){
-  echo "export $1=$2" >> "$PROFILE_PATH"
-}
-
-# Usage: $ set-default-env key value
-function set-default-env (){
-  echo "export $1=\${$1:-$2}" >> "$PROFILE_PATH"
-}
-
-export LANG=en_US.UTF-8
-export LIBRARY_PATH=$WORK_DIR/vendor/ghc-libs:/usr/lib:$LIBRARY_PATH
-export LD_LIBRARY_PATH=$LIBRARY_PATH
-export PATH=$WORK_DIR/.local/bin:$WORK_DIR/vendor/bin:$PATH
-export STACK_ROOT=$CACHE_DIR/.stack
-
-########## gmp #####################################################
-LIBGMP_VER=${LIBGMP_VER:-6.0.0a}
-LIBGMP_URL=${LIBGMP_URL:-https://s3.amazonaws.com/heroku-ghc/heroku-libgmp-"$LIBGMP_VER".tar.gz}
-LIBGMP_DIR="$CACHE_DIR/libgmp-$LIBGMP_VER"
-if [ ! -e "$LIBGMP_DIR" ]; then
-  speak "Installing libgmp-$LIBGMP_VER into cache"
-  mkdir -p "$LIBGMP_DIR"
-  curl -# -L "$LIBGMP_URL" | tar xz -C "$LIBGMP_DIR"
+if [ ! "$(which stack)" ]; then
+    version=0.1.6.0
+    slug="stack-$version-linux-x86_64"
+    url="https://github.com/commercialhaskell/stack/releases/download/v$version/$slug.tar.gz"
+    if [ ! -x "$cache/$slug/stack" ]; then
+        echo '-----> Downloading stack'
+        curl -sL "$url" | tar -xzC "$cache"
+    fi
+    if [ ! -f "$bin/slack" ]; then
+        echo '-----> Installing stack'
+        cp "$cache/$slug/stack" "$bin"
+    fi
 fi
-speak "Restoring $LIBGMP_VER files from cache"
-rsync -avq "$LIBGMP_DIR/ghc-libs/" "$WORK_DIR/vendor/ghc-libs"
 
-########## stack exe ###############################################
-STACK_VER=${STACK_VER:-1.0.2}
-STACK_URL=${STACK_URL:-https://github.com/commercialhaskell/stack/releases/download/v"$STACK_VER"/stack-"$STACK_VER"-linux-x86_64.tar.gz}
-STACK_DIR="$CACHE_DIR/stack-$STACK_VER"
-STACK_EXE="$STACK_DIR/stack"
-if [ ! -e "$STACK_EXE" ]; then
-  speak "Downloading stack-$STACK_VER"
-  mkdir -p "$STACK_DIR"
-  curl -# -L "$STACK_URL" | tar xz -C "$STACK_DIR" --strip-components=1
+if [ ! "$(which stack-run)" ]; then
+    echo '-----> Installing stack-run'
+    cat << 'EOF' > "$bin/stack-run"
+#!/bin/bash
+$(grep ^executable *.cabal | head -n1 | awk '{print $2}')
+EOF
+    chmod +x "$bin/stack-run"
 fi
-speak "Restoring stack-$STACK_VER"
-rsync -avq "$STACK_EXE" "$WORK_DIR/vendor/bin/stack"
-chmod a+x "$WORK_DIR/vendor/bin/stack"
 
-########## project build ###########################################
-speak "Running stack"
-cd "$BUILD_DIR"
-stack setup --work-dir "$STACK_ROOT"
-stack build --work-dir "$STACK_ROOT"
+export HOME="$cache"
+cd "$build"
 
-speak "Running ghcjs stack"
-STACK_YAML=stack_ghcjs.yaml stack setup --work-dir "$STACK_ROOT"
-STACK_YAML=stack_ghcjs.yaml stack build --work-dir "$STACK_ROOT"
+echo '-----> Setting up stack'
+stack setup |& indent
 
-cp $(STACK_YAML=stack_ghcjs.yaml stack path --work-dir "$STACK_ROOT" --local-install-root)/bin/joemax-app.jsexe/*.js ./public/javascript/
-
-# Set context environment variables.
-set-env PATH "$WORK_DIR/.local/bin:$PATH"
-set-default-env LIBRARY_PATH /app/vendor/ghc-libs:/usr/lib
-set-default-env LD_LIBRARY_PATH /app/vendor/ghc-libs:/usr/lib
-
-speak "Making stack binaries available"
-mkdir -p "$BUILD_DIR/vendor"
-mkdir -p "$BUILD_DIR/.local"
-mv "$WORK_DIR/vendor/ghc-libs" "$BUILD_DIR/vendor"
-mv "$WORK_DIR/.local/bin" "$BUILD_DIR/.local"
-
-speak "Finished!"
+echo '-----> Installing app'
+mkdir -p "$cache/.stack-work"
+ln -s "$cache/.stack-work" "$build"
+stack build |& indent
+cp $(stack path --local-install-root)/bin/* "$bin"
+rm "$build/.stack-work"
