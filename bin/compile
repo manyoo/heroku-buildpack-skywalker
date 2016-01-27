@@ -53,14 +53,14 @@ EOF
 fi
 
 export HOME="$cache"
+mkdir -p "$cache/.stack-work"
+ln -s "$cache/.stack-work" "$build/.stack-work"
 cd "$build"
 
 echo '-----> Setting up stack'
 stack setup |& indent
 
 echo '-----> Installing app'
-mkdir -p "$cache/.stack-work"
-ln -s "$cache/.stack-work" "$build/.stack-work"
 stack build |& indent
 cp $(stack path --local-install-root)/bin/* "$bin"
 
