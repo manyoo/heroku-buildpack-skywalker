@@ -1,3 +1,6 @@
-#!/usr/bin/env bash
-
-echo "--- {}"
+#!/bin/bash
+cat << 'EOF'
+---
+default_process_types:
+    web: PATH="$HOME/.vendor/stack/bin:$PATH" LANG=en_US.UTF-8 stack-run
+EOF
