@@ -80,6 +80,7 @@ chmod a+x "$WORK_DIR/vendor/bin/stack"
 speak "Running stack"
 cd "$BUILD_DIR"
 stack setup
+ls
 ls src
 stack build --copy-bins
 
