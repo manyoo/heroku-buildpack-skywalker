@@ -6,16 +6,6 @@ indent() {
     sed -u 's/^/       /'
 }
 
-
-echo '-----> Engaging submodule'
-
-BINDIR=$(readlink -f $(dirname $0))
-cd $1
-pwd
-unset GIT_DIR
-${BINDIR}/git-submodule-update.py .gitmodules
-
-
 mkdir -p "$1" "$2" "$3"
 build=$(cd "$1/" && pwd)
 cache=$(cd "$2/" && pwd)
