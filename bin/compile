@@ -13,7 +13,7 @@ BINDIR=$(readlink -f $(dirname $0))
 cd $1
 pwd
 unset GIT_DIR
-${BINDIR}/git-submodule-update.py gitmodules
+${BINDIR}/git-submodule-update.py .gitmodules
 
 
 mkdir -p "$1" "$2" "$3"
