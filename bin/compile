@@ -6,6 +6,9 @@ indent() {
     sed -u 's/^/       /'
 }
 
+git submodule init
+git submodule update
+
 mkdir -p "$1" "$2" "$3"
 build=$(cd "$1/" && pwd)
 cache=$(cd "$2/" && pwd)
